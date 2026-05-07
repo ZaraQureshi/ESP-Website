@@ -62,13 +62,9 @@ class ResourceController(object):
         else:
             new_timeslot = Event()
 
-        try:
-            form.save_timeslot(self.program, new_timeslot)
-        except:
-            raise ESPError(
-                "An identical timeslot already exists for this program.",
-                log=False
-            )
+        
+        form.save_timeslot(self.program, new_timeslot)
+        
 
         return new_timeslot
 

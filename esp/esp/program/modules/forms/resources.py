@@ -25,6 +25,7 @@ class TimeslotForm(forms.Form):
     def __init__(self, *args, **kwargs):
         if 'program' in kwargs:
             program = kwargs.pop('program')
+            self.program=program
         else:
             raise KeyError('Need to supply program as named argument to TimeslotForm')
         super().__init__(*args, **kwargs)
@@ -50,6 +51,35 @@ class TimeslotForm(forms.Form):
         cleaned_data = super().clean()
         if cleaned_data.get('openclass') and cleaned_data.get('compulsory'):
            raise forms.ValidationError("A timeslot cannot be both 'Open Class' and 'Compulsory' at the same time.")
+        
+        start = cleaned_data.get('start')
+        hours = cleaned_data.get('hours')
+        minutes = cleaned_data.get('minutes')
+        if start is None or hours is None or minutes is None:
+            return cleaned_data
+
+        end = start + timedelta(hours=hours, minutes=minutes)
+
+        if cleaned_data.get('openclass'):
+            event_type = EventType.get_from_desc("Open Class Time Block")
+        elif cleaned_data.get('compulsory'):
+            event_type = EventType.get_from_desc("Compulsory")
+        else:
+            event_type = EventType.get_from_desc("Class Time Block")
+
+        qs=Event.objects.filter(program=self.program, start=start, end=end, short_description=cleaned_data.get('name'),
+                description=cleaned_data.get('description'),
+                event_type=event_type,
+                group=cleaned_data.get('group'))
+        
+        slot_id = cleaned_data.get('id')
+        if slot_id:
+            qs = qs.exclude(pk=slot_id)
+
+        if qs.exists():
+            raise forms.ValidationError(
+                "A timeslot with the same data already exists for this program."
+            )
         return cleaned_data
 
     def save_timeslot(self, program, slot):
@@ -65,16 +95,10 @@ class TimeslotForm(forms.Form):
             slot.event_type = EventType.get_from_desc("Class Time Block")    # default event type for now
         slot.group = self.cleaned_data['group']
         slot.program = program
-        qs=Event.objects.filter(program=program, start=self.cleaned_data['start'], end=slot.end,short_description=self.cleaned_data.get('name'),
-                description=self.cleaned_data.get('description'),
-                event_type=slot.event_type,
-                group=self.cleaned_data.get('group')).exists()
-        if qs is False:
-            slot.save()
         
-        if qs is True:
-                raise forms.ValidationError("A timeslot with the same data already exists for this program.")
-      
+        slot.save()
+        
+        
 class ResourceTypeForm(forms.Form):
     id = forms.IntegerField(required=False, widget=forms.HiddenInput)
     name = forms.CharField()
