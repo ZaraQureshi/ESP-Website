@@ -84,8 +84,7 @@ class Event(models.Model):
            
             models.UniqueConstraint(
                 fields=['program', 'start', 'end', 'event_type', 'group'],
-                name='uniq_event_timeslot_by_program',
-                nulls_distinct=False
+                name='uniq_event_timeslot_by_program'
             ),
         ]
     def title(self):
